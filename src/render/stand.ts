@@ -1,12 +1,20 @@
-// The lemonade stand: cheerful wooden counter, striped awning, price sign,
-// pitcher + cup stack — plus visible upgrades and the kid running it.
+// The lemonade cart: a cheery yellow box cart with wheels, a big scalloped
+// parasol, pitcher + cups on the counter, and the kid who runs it.
+// Drawn in the same 3/4 street projection as the scene.
 
 import type { UpgradeId } from '../types.ts';
-import { LINE_W, OUTLINE } from './people.ts';
+
+const OUT = '#233020';
+/** Across-street offset direction — matches scene.ts. */
+const NX = -0.35;
+const NY = -1;
+/** Along-street slope — matches scene.ts. */
+const SLOPE = 0.22;
 
 export interface StandDraw {
-  x: number; // center
-  y: number; // ground baseline
+  x: number; // screen anchor (sidewalk point)
+  y: number;
+  scale: number;
   price: number;
   upgrades: UpgradeId[];
   /** 0..1 lemonade left in the pitcher. */
@@ -16,256 +24,255 @@ export interface StandDraw {
   soldOut: boolean;
   /** Vendor serving animation phase, 0..1 (0 = idle). */
   serveAnim: number;
-  /** Sim time for idle animations (radio notes, steam). */
   t: number;
 }
 
 export function drawStand(g: CanvasRenderingContext2D, s: StandDraw): void {
   g.save();
   g.translate(s.x, s.y);
-  g.lineWidth = LINE_W;
-  g.strokeStyle = OUTLINE;
+  g.scale(s.scale, s.scale);
   g.lineJoin = 'round';
+  g.strokeStyle = OUT;
 
-  const counterW = 170;
-  const counterH = 62;
-  const counterTop = -counterH;
+  const W = 104; // cart length along street
+  const D = 34; // depth
+  const H = 54; // counter height
+  const dTx = 1;
+  const dTy = -SLOPE;
 
-  // Cooler chest beside the stand.
+  const P = (t: number, k: number, h: number): [number, number] => [
+    t * dTx + k * NX,
+    t * dTy + k * NY - h,
+  ];
+
+  // Ground shadow.
+  g.fillStyle = 'rgba(20,40,20,0.2)';
+  g.beginPath();
+  g.ellipse(W / 2 - 8, -6, W * 0.72, 22, -0.08, 0, Math.PI * 2);
+  g.fill();
+
+  // --- Side props --------------------------------------------------------
   if (s.upgrades.includes('cooler')) {
-    g.fillStyle = '#2b8fd9';
-    g.beginPath();
-    g.roundRect(-counterW / 2 - 46, -34, 38, 34, 5);
-    g.fill();
-    g.stroke();
+    box(g, P, -46, 2, 30, 18, 22, '#2f8fd0', '#1d6ba6');
     g.fillStyle = '#d8f1ff';
-    g.beginPath();
-    g.roundRect(-counterW / 2 - 48, -40, 42, 10, 4);
-    g.fill();
-    g.stroke();
+    const [lx, ly] = P(-46, 2, 24);
+    g.fillRect(lx - 2, ly, 33, 6);
+    g.lineWidth = 2;
+    g.strokeRect(lx - 2, ly, 33, 6);
   }
-
-  // Big A-frame sign on the other side.
   if (s.upgrades.includes('sign')) {
+    const [ax, ay] = P(W + 26, -6, 0);
     g.fillStyle = '#fff9e6';
     g.beginPath();
-    g.moveTo(counterW / 2 + 18, 0);
-    g.lineTo(counterW / 2 + 34, -52);
-    g.lineTo(counterW / 2 + 50, 0);
+    g.moveTo(ax, ay);
+    g.lineTo(ax + 11, ay - 38);
+    g.lineTo(ax + 22, ay);
     g.closePath();
     g.fill();
+    g.lineWidth = 2.5;
     g.stroke();
-    g.fillStyle = '#e8543f';
-    g.font = 'bold 11px "Trebuchet MS", Verdana, sans-serif';
+    g.fillStyle = '#d8402c';
+    g.font = 'bold 9px Verdana, sans-serif';
     g.textAlign = 'center';
-    g.save();
-    g.translate(counterW / 2 + 34, -22);
-    g.fillText('FRESH', 0, -6);
-    g.fillStyle = '#2b8fd9';
-    g.fillText('CHEAP!', 0, 8);
-    g.restore();
+    g.fillText('FRESH', ax + 11, ay - 22);
+    g.fillStyle = '#1d6ba6';
+    g.fillText('CHEAP', ax + 11, ay - 11);
   }
 
-  // Counter body — wooden planks.
-  g.fillStyle = '#c98a4b';
-  g.beginPath();
-  g.roundRect(-counterW / 2, counterTop, counterW, counterH, 4);
-  g.fill();
-  g.stroke();
-  g.strokeStyle = '#8a5a2b';
-  g.lineWidth = 2;
-  for (let i = 1; i < 3; i++) {
-    const py = counterTop + (counterH / 3) * i;
+  // --- Vendor kid (behind the cart; the counter occludes his legs) -------
+  drawVendor(g, P, s.brewing, s.t);
+
+  // --- Cart body ---------------------------------------------------------
+  // Right side face.
+  g.lineWidth = 3;
+  g.fillStyle = '#e0a52c';
+  poly(g, [P(W, 0, 0), P(W, D, 0), P(W, D, H), P(W, 0, H)]);
+  // Front face.
+  g.fillStyle = '#ffd93b';
+  poly(g, [P(0, 0, 0), P(W, 0, 0), P(W, 0, H), P(0, 0, H)]);
+  // Counter top.
+  g.fillStyle = '#fff3b0';
+  poly(g, [P(-4, -3, H), P(W + 4, -3, H), P(W + 4, D + 3, H), P(-4, D + 3, H)]);
+
+  // Wheels on the front face.
+  for (const wt of [20, W - 24]) {
+    const [wx, wy] = P(wt, -2, 0);
+    g.fillStyle = '#54473a';
     g.beginPath();
-    g.moveTo(-counterW / 2 + 4, py);
-    g.lineTo(counterW / 2 - 4, py);
+    g.arc(wx, wy + 2, 10, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 2.5;
     g.stroke();
+    g.fillStyle = '#c9c4b0';
+    g.beginPath();
+    g.arc(wx, wy + 2, 4, 0, Math.PI * 2);
+    g.fill();
   }
-  // Front sign panel on the counter.
+
+  // Price sign on the front face.
+  const [sx0, sy0] = P(W / 2, 0, H - 8);
   g.fillStyle = '#fff9e6';
   g.beginPath();
-  g.roundRect(-52, counterTop + 12, 104, 38, 6);
+  g.roundRect(sx0 - 34, sy0, 68, 30, 4);
   g.fill();
-  g.strokeStyle = OUTLINE;
   g.lineWidth = 2.5;
   g.stroke();
-  g.fillStyle = '#e8543f';
-  g.font = 'bold 15px "Comic Sans MS", "Trebuchet MS", sans-serif';
+  g.fillStyle = '#d8402c';
+  g.font = 'bold 11px Verdana, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText('LEMONADE', 0, counterTop + 26);
-  g.fillStyle = '#3e8948';
-  g.font = 'bold 14px "Comic Sans MS", "Trebuchet MS", sans-serif';
-  g.fillText(`$${s.price.toFixed(2)}`, 0, counterTop + 42);
+  g.fillText('LEMONADE', sx0, sy0 + 9);
+  g.fillStyle = '#1e7020';
+  g.fillText(`$${s.price.toFixed(2)}`, sx0, sy0 + 21);
 
-  // Counter top slab.
-  g.fillStyle = '#e8c07d';
-  g.beginPath();
-  g.roundRect(-counterW / 2 - 6, counterTop - 8, counterW + 12, 10, 4);
-  g.fill();
-  g.lineWidth = LINE_W;
-  g.stroke();
-  const slabY = counterTop - 8;
-
-  // Awning: modest by default, deluxe scalloped when upgraded.
-  const posts = s.upgrades.includes('awning');
-  const awnW = posts ? counterW + 44 : counterW + 8;
-  const awnY = posts ? -168 : -138;
-  if (posts) {
-    g.fillStyle = '#8a5a2b';
-    g.fillRect(-awnW / 2 + 2, awnY + 12, 6, -awnY + slabY + 40);
-    g.fillRect(awnW / 2 - 8, awnY + 12, 6, -awnY + slabY + 40);
-    g.strokeRect(-awnW / 2 + 2, awnY + 12, 6, -awnY + slabY + 40);
-    g.strokeRect(awnW / 2 - 8, awnY + 12, 6, -awnY + slabY + 40);
-  } else {
-    g.fillStyle = '#8a5a2b';
-    g.fillRect(-counterW / 2 + 6, awnY + 10, 5, 60);
-    g.fillRect(counterW / 2 - 11, awnY + 10, 5, 60);
-    g.strokeRect(-counterW / 2 + 6, awnY + 10, 5, 60);
-    g.strokeRect(counterW / 2 - 11, awnY + 10, 5, 60);
-  }
-  // Canopy with scalloped striped edge.
-  const stripes = 7;
-  const stripeW = awnW / stripes;
-  g.beginPath();
-  g.moveTo(-awnW / 2, awnY + 14);
-  g.lineTo(-awnW / 2 + 8, awnY - 8);
-  g.lineTo(awnW / 2 - 8, awnY - 8);
-  g.lineTo(awnW / 2, awnY + 14);
-  g.closePath();
-  g.fillStyle = '#ffd93b';
-  g.fill();
-  g.stroke();
-  for (let i = 0; i < stripes; i++) {
-    g.fillStyle = i % 2 === 0 ? '#e8543f' : '#fff9e6';
-    const x0 = -awnW / 2 + i * stripeW;
-    g.beginPath();
-    g.moveTo(x0, awnY + 14);
-    g.lineTo(x0 + stripeW, awnY + 14);
-    g.arc(x0 + stripeW / 2, awnY + 14, stripeW / 2, 0, Math.PI);
-    g.closePath();
-    g.fill();
-    g.stroke();
-  }
-
-  // Pitcher on the counter (liquid level = remaining cups).
-  const px = -58;
+  // --- Counter items -----------------------------------------------------
+  // Pitcher.
+  const [px, py] = P(16, D / 2, H);
   g.fillStyle = '#e8f7ff';
   g.beginPath();
-  g.roundRect(px - 13, slabY - 34, 26, 34, [4, 4, 6, 6]);
+  g.roundRect(px - 9, py - 26, 18, 26, [3, 3, 5, 5]);
   g.fill();
+  g.lineWidth = 2.5;
   g.stroke();
   if (s.pitcherLevel > 0) {
-    const lvl = 26 * s.pitcherLevel;
     g.fillStyle = '#ffd93b';
-    g.fillRect(px - 10, slabY - 4 - lvl, 20, lvl);
+    const lvl = 20 * s.pitcherLevel;
+    g.fillRect(px - 6.5, py - 3 - lvl, 13, lvl);
   }
-  // Handle + spout
   g.beginPath();
-  g.moveTo(px + 13, slabY - 28);
-  g.quadraticCurveTo(px + 24, slabY - 22, px + 13, slabY - 12);
-  g.stroke();
-  g.beginPath();
-  g.moveTo(px - 13, slabY - 34);
-  g.lineTo(px - 18, slabY - 30);
+  g.moveTo(px + 9, py - 22);
+  g.quadraticCurveTo(px + 17, py - 17, px + 9, py - 10);
   g.stroke();
 
-  // Cup stack — height tracks remaining cups.
-  const stack = Math.max(0, Math.min(6, Math.ceil(s.cupsLeft / 25)));
+  // Cup stack.
+  const stack = Math.max(0, Math.min(5, Math.ceil(s.cupsLeft / 30)));
   g.fillStyle = '#ffffff';
+  g.lineWidth = 2;
   for (let i = 0; i < stack; i++) {
+    const [cx, cy] = P(40, D / 2, H + i * 4);
     g.beginPath();
-    g.moveTo(34 - 7, slabY - i * 5);
-    g.lineTo(34 + 7, slabY - i * 5);
-    g.lineTo(34 + 5, slabY - 10 - i * 5);
-    g.lineTo(34 - 5, slabY - 10 - i * 5);
+    g.moveTo(cx - 5, cy);
+    g.lineTo(cx + 5, cy);
+    g.lineTo(cx + 3.5, cy - 8);
+    g.lineTo(cx - 3.5, cy - 8);
     g.closePath();
     g.fill();
     g.stroke();
   }
 
-  // Juicer.
+  // Juicer / register / radio props.
   if (s.upgrades.includes('juicer')) {
+    const [jx, jy] = P(92, D / 2, H);
     g.fillStyle = '#9aa7b8';
     g.beginPath();
-    g.roundRect(62, slabY - 22, 22, 22, 4);
+    g.roundRect(jx - 8, jy - 15, 16, 15, 3);
     g.fill();
     g.stroke();
     g.fillStyle = '#ffd93b';
     g.beginPath();
-    g.arc(73, slabY - 24, 7, Math.PI, Math.PI * 2);
+    g.arc(jx, jy - 17, 5, Math.PI, 0);
     g.fill();
     g.stroke();
   }
-
-  // Cash register.
   if (s.upgrades.includes('register')) {
+    const [rx, ry] = P(62, D / 2, H);
     g.fillStyle = '#54606e';
     g.beginPath();
-    g.roundRect(-24, slabY - 20, 26, 20, 3);
+    g.roundRect(rx - 8, ry - 13, 16, 13, 2);
     g.fill();
     g.stroke();
     g.fillStyle = '#d8f1ff';
-    g.fillRect(-20, slabY - 17, 8, 6);
+    g.fillRect(rx - 5, ry - 10, 5, 4);
   }
-
-  // Radio with drifting notes.
   if (s.upgrades.includes('radio')) {
+    const [ax, ay] = P(-18, D - 6, H - 22);
     g.fillStyle = '#8c5a9e';
     g.beginPath();
-    g.roundRect(6, slabY - 16, 22, 16, 3);
+    g.roundRect(ax - 8, ay - 10, 16, 12, 2);
     g.fill();
     g.stroke();
-    g.fillStyle = OUTLINE;
-    g.beginPath();
-    g.arc(12, slabY - 8, 3, 0, Math.PI * 2);
-    g.arc(22, slabY - 8, 3, 0, Math.PI * 2);
-    g.fill();
     const notePhase = (s.t * 0.7) % 1;
     g.globalAlpha = 1 - notePhase;
-    g.font = 'bold 13px serif';
-    g.fillText('♪', 30 + notePhase * 14, slabY - 24 - notePhase * 22);
+    g.fillStyle = OUT;
+    g.font = 'bold 11px serif';
+    g.fillText('♪', ax + 10 + notePhase * 10, ay - 14 - notePhase * 16);
     g.globalAlpha = 1;
   }
 
-  // The vendor kid behind the counter (upper body above the slab).
-  drawVendor(g, 40, slabY, s.serveAnim, s.brewing, s.t);
-
-  // Hygiene certificate pinned to the counter.
-  if (s.upgrades.includes('hygiene')) {
-    g.fillStyle = '#ffffff';
+  // Serving arm + cup slides across the counter toward the queue.
+  if (s.serveAnim > 0) {
+    const reach = Math.sin(s.serveAnim * Math.PI) * 18;
+    const [hx, hy] = P(8 - reach * 0.6, D / 2, H + 4);
+    g.fillStyle = '#f2c19a';
     g.beginPath();
-    g.roundRect(58, counterTop + 16, 22, 28, 2);
+    g.arc(hx, hy, 4.5, 0, Math.PI * 2);
     g.fill();
     g.lineWidth = 2;
     g.stroke();
-    g.fillStyle = '#63c74d';
-    g.beginPath();
-    g.arc(69, counterTop + 36, 4, 0, Math.PI * 2);
-    g.fill();
-    g.strokeStyle = '#2b8fd9';
-    g.beginPath();
-    g.moveTo(61, counterTop + 21);
-    g.lineTo(77, counterTop + 21);
-    g.moveTo(61, counterTop + 25);
-    g.lineTo(77, counterTop + 25);
-    g.stroke();
-    g.strokeStyle = OUTLINE;
+    if (s.serveAnim < 0.7) {
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      g.roundRect(hx - 10, hy - 10, 8, 9, 1.5);
+      g.fill();
+      g.stroke();
+      g.fillStyle = '#ffd93b';
+      g.fillRect(hx - 8.5, hy - 8, 5, 3);
+    }
   }
 
-  // SOLD OUT banner.
+  // --- Parasol -----------------------------------------------------------
+  const [bx0, by0] = P(W * 0.5, D + 6, 0);
+  const poleTop = by0 - 128;
+  g.strokeStyle = '#6e5030';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(bx0, by0);
+  g.lineTo(bx0 + 6, poleTop);
+  g.stroke();
+  g.strokeStyle = OUT;
+  g.lineWidth = 2.5;
+  const cx = bx0 + 6;
+  const cy = poleTop + 8;
+  for (let i = 0; i < 8; i++) {
+    g.fillStyle = i % 2 === 0 ? '#ffd93b' : '#fff9e6';
+    g.beginPath();
+    g.moveTo(cx, cy);
+    g.ellipse(cx, cy, 88, 34, -0.07, Math.PI + (i * Math.PI) / 8, Math.PI + ((i + 1) * Math.PI) / 8);
+    g.closePath();
+    g.fill();
+    g.stroke();
+  }
+  // Scalloped edge.
+  for (let i = 0; i < 8; i++) {
+    const a0 = Math.PI + (i * Math.PI) / 8;
+    const a1 = Math.PI + ((i + 1) * Math.PI) / 8;
+    const mx = cx + Math.cos((a0 + a1) / 2) * 88;
+    const my = cy + Math.sin((a0 + a1) / 2) * 34;
+    g.fillStyle = i % 2 === 0 ? '#ffd93b' : '#fff9e6';
+    g.beginPath();
+    g.arc(mx, my + 1, 6, 0, Math.PI);
+    g.fill();
+    g.stroke();
+  }
+  g.fillStyle = '#e0a52c';
+  g.beginPath();
+  g.arc(cx, cy - 34, 5, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+
+  // SOLD OUT shingle hanging from the parasol.
   if (s.soldOut) {
     g.save();
-    g.translate(-30, counterTop - 46);
+    g.translate(cx - 40, cy + 26);
     g.rotate(-0.06);
-    g.fillStyle = '#e8543f';
+    g.fillStyle = '#d8402c';
     g.beginPath();
-    g.roundRect(-58, -14, 116, 28, 6);
+    g.roundRect(-42, -11, 84, 22, 5);
     g.fill();
-    g.lineWidth = 3;
+    g.lineWidth = 2.5;
     g.stroke();
     g.fillStyle = '#fff';
-    g.font = 'bold 15px "Trebuchet MS", Verdana, sans-serif';
+    g.font = 'bold 12px Verdana, sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText('SOLD OUT!', 0, 1);
@@ -275,73 +282,79 @@ export function drawStand(g: CanvasRenderingContext2D, s: StandDraw): void {
   g.restore();
 }
 
-/** The kid running the stand — head + shoulders behind the counter. */
 function drawVendor(
   g: CanvasRenderingContext2D,
-  x: number,
-  slabY: number,
-  serveAnim: number,
+  P: (t: number, k: number, h: number) => [number, number],
   brewing: boolean,
   t: number,
 ): void {
-  g.save();
-  g.translate(x, slabY);
-  g.lineWidth = 3;
-  g.strokeStyle = OUTLINE;
-
   const bounce = brewing ? Math.sin(t * 12) * 2 : 0;
+  const [vx, vy] = P(52, 46, 0);
+  g.save();
+  g.translate(vx, vy + bounce);
+  g.lineWidth = 2.5;
+  g.strokeStyle = OUT;
 
-  // Torso with apron.
+  // Torso + apron — mostly hidden behind the cart, shoulders peek over.
   g.fillStyle = '#3e8948';
   g.beginPath();
-  g.roundRect(-14, -26 + bounce, 28, 26, 6);
+  g.roundRect(-13, -30, 26, 30, 5);
   g.fill();
   g.stroke();
   g.fillStyle = '#ffffff';
   g.beginPath();
-  g.roundRect(-9, -22 + bounce, 18, 22, 4);
+  g.roundRect(-9, -26, 18, 26, 3);
   g.fill();
   g.stroke();
 
-  // Serving arm reaches toward the customer side (left).
-  if (serveAnim > 0) {
-    const reach = Math.sin(serveAnim * Math.PI) * 16;
-    g.fillStyle = '#f2c19a';
-    g.beginPath();
-    g.arc(-16 - reach, -18 + bounce, 5, 0, Math.PI * 2);
-    g.fill();
-    g.stroke();
-    if (serveAnim < 0.7) {
-      g.fillStyle = '#ffffff';
-      g.beginPath();
-      g.roundRect(-22 - reach, -32 + bounce, 9, 11, 1.5);
-      g.fill();
-      g.stroke();
-      g.fillStyle = '#ffd93b';
-      g.fillRect(-20.5 - reach, -30 + bounce, 6, 3);
-    }
-  }
-
-  // Head.
+  // Head + paper hat.
   g.fillStyle = '#f2c19a';
   g.beginPath();
-  g.arc(0, -38 + bounce, 12, 0, Math.PI * 2);
+  g.arc(0, -41, 11, 0, Math.PI * 2);
   g.fill();
   g.stroke();
-  g.fillStyle = OUTLINE;
+  g.fillStyle = OUT;
   g.beginPath();
-  g.arc(-4, -40 + bounce, 1.5, 0, Math.PI * 2);
-  g.arc(2, -40 + bounce, 1.5, 0, Math.PI * 2);
+  g.arc(-4, -43, 1.4, 0, Math.PI * 2);
+  g.arc(2, -43, 1.4, 0, Math.PI * 2);
   g.fill();
   g.beginPath();
-  g.arc(-1, -35 + bounce, 4, 0.1 * Math.PI, 0.9 * Math.PI);
+  g.arc(-1, -38, 3.5, 0.1 * Math.PI, 0.9 * Math.PI);
   g.stroke();
-  // Paper hat.
   g.fillStyle = '#ffffff';
   g.beginPath();
-  g.roundRect(-10, -52 + bounce, 20, 8, 2);
+  g.roundRect(-9, -55, 18, 7, 2);
   g.fill();
   g.stroke();
 
   g.restore();
+}
+
+function box(
+  g: CanvasRenderingContext2D,
+  P: (t: number, k: number, h: number) => [number, number],
+  t: number,
+  k: number,
+  w: number,
+  d: number,
+  h: number,
+  cFront: string,
+  cSide: string,
+): void {
+  g.lineWidth = 2.5;
+  g.fillStyle = cSide;
+  poly(g, [P(t + w, k, 0), P(t + w, k + d, 0), P(t + w, k + d, h), P(t + w, k, h)]);
+  g.fillStyle = cFront;
+  poly(g, [P(t, k, 0), P(t + w, k, 0), P(t + w, k, h), P(t, k, h)]);
+  g.fillStyle = cFront;
+  poly(g, [P(t, k, h), P(t + w, k, h), P(t + w, k + d, h), P(t, k + d, h)]);
+}
+
+function poly(g: CanvasRenderingContext2D, pts: [number, number][]): void {
+  g.beginPath();
+  g.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+  g.closePath();
+  g.fill();
+  g.stroke();
 }

@@ -91,6 +91,17 @@ export const ICONS = {
     `<path d="M2.5 5 l5 -2 5 2 5 -2 v12 l-5 2 -5 -2 -5 2 z" fill="#a8e6a1" stroke="#4a3f22" stroke-width="1.8" stroke-linejoin="round"/>
      <path d="M7.5 3 v12 M12.5 5 v12" stroke="#4a3f22" stroke-width="1.2" stroke-dasharray="2 1.5"/>`,
   ),
+  chart: S(
+    `<rect x="2.5" y="2.5" width="15" height="15" rx="2" fill="#fff9e6" stroke="#4a3f22" stroke-width="1.8"/>
+     <rect x="5" y="10" width="3" height="5.5" fill="#63c74d"/>
+     <rect x="9" y="7" width="3" height="8.5" fill="#f0b429"/>
+     <rect x="13" y="4.5" width="3" height="11" fill="#e8543f"/>`,
+  ),
+  house: S(
+    `<path d="M2.5 10 L10 3 L17.5 10" fill="none" stroke="#4a3f22" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+     <path d="M4.5 9 v8 h11 v-8" fill="#ffd93b" stroke="#4a3f22" stroke-width="1.8" stroke-linejoin="round"/>
+     <rect x="8.4" y="12" width="3.4" height="5" fill="#8a5a2b" stroke="#4a3f22" stroke-width="1.4"/>`,
+  ),
   play: S(`<path d="M5 3 L 17 10 5 17 z" fill="#63c74d" stroke="#4a3f22" stroke-width="1.8" stroke-linejoin="round"/>`),
   pause: S(
     `<rect x="4" y="3.5" width="4.4" height="13" rx="1.5" fill="#f0b429" stroke="#4a3f22" stroke-width="1.6"/>

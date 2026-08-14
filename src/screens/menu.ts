@@ -64,20 +64,20 @@ export const menuScreen: Screen = {
       ctx.audio.click();
       ctx.state = newGame('career');
       ctx.save();
-      ctx.goto('planning');
+      ctx.goto('game');
     };
     btnFree.onclick = () => {
       ctx.audio.click();
       ctx.state = newGame('freeplay');
       ctx.save();
-      ctx.goto('planning');
+      ctx.goto('game');
     };
     btnContinue.onclick = () => {
       ctx.audio.click();
       const s = loadGame();
       if (s) {
         ctx.state = s;
-        ctx.goto('planning');
+        ctx.goto('game');
       }
     };
     btnOptions.onclick = () => {

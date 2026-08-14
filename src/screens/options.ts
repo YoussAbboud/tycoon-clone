@@ -100,7 +100,7 @@ export const optionsScreen: Screen = {
     back.style.marginTop = '12px';
     back.onclick = () => {
       ctx.audio.click();
-      ctx.goto(ctx.state ? 'planning' : 'menu');
+      ctx.goto(ctx.state ? 'game' : 'menu');
     };
 
     root.append(panel, savePanel, back);

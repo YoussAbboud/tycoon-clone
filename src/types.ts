@@ -1,6 +1,6 @@
 // Shared type definitions for Fresh Squeeze.
 
-export type ScreenId = 'menu' | 'planning' | 'day' | 'results' | 'map' | 'options';
+export type ScreenId = 'menu' | 'game' | 'options';
 export type GameMode = 'career' | 'freeplay';
 
 export type WeatherKind = 'sunny' | 'hot' | 'cloudy' | 'rain' | 'mild';

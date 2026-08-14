@@ -6,10 +6,7 @@ import { loadOptions, saveGame, saveOptions } from './game.ts';
 import { AudioSys } from './audio.ts';
 
 import { menuScreen } from './screens/menu.ts';
-import { planningScreen } from './screens/planning.ts';
-import { dayScreen } from './screens/day.ts';
-import { resultsScreen } from './screens/results.ts';
-import { mapScreen } from './screens/map.ts';
+import { gameScreen } from './screens/game.ts';
 import { optionsScreen } from './screens/options.ts';
 
 export interface Ctx {
@@ -30,10 +27,7 @@ export interface Screen {
 
 const screens: Record<ScreenId, Screen> = {
   menu: menuScreen,
-  planning: planningScreen,
-  day: dayScreen,
-  results: resultsScreen,
-  map: mapScreen,
+  game: gameScreen,
   options: optionsScreen,
 };
 
