@@ -21,6 +21,8 @@ export function rollWeather(rng: Rng, prevTemp: number, events: ActiveEvent[]): 
   else kind = 'mild';
   // A "hot" sky needs the temperature to back it up.
   if (kind === 'hot' && temp < HOT_TEMP) kind = 'sunny';
+  // A promised heatwave delivers (the news is more reliable than the forecast).
+  if (events.some((e) => e.id === 'heatwave')) kind = 'hot';
 
   return { kind, temp };
 }
