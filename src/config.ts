@@ -27,7 +27,7 @@ export const START_CASH = 40;
 export const START_POPULARITY = 25;
 export const START_LOCATION: LocationId = 'suburbs';
 export const START_PRICE = 1.0;
-export const START_RECIPE = { lemons: 6, sugar: 6, ice: 3 };
+export const START_RECIPE = { lemons: 5, sugar: 5, ice: 3 };
 export const CAREER_DAYS = 30;
 
 // ---------------------------------------------------------------------------
@@ -41,10 +41,10 @@ export const RECIPE_RANGE = {
 export const CUPS_PER_PITCHER = 8;
 export const CUPS_PER_PITCHER_UPGRADED = 12;
 /** Ideal lemons per pitcher — the "right strength". */
-export const IDEAL_LEMONS = 6;
+export const IDEAL_LEMONS = 5;
 /** Ideal sugar tracks lemons, shifted by temperature (cool days like it sweeter). */
 export function idealSugar(temp: number): number {
-  return 6 + Math.max(0, (72 - temp) / 12); // up to ~+1.5 on cold days
+  return 5 + Math.max(0, (72 - temp) / 12); // up to ~+1.5 on cold days
 }
 /** Ideal ice cubes per cup as a function of temperature. */
 export function idealIce(temp: number): number {
@@ -61,14 +61,14 @@ export interface StockTier {
 }
 export const STOCK_TIERS: Record<StockId, StockTier[]> = {
   lemons: [
-    { qty: 6, cost: 3.0, label: 'Half dozen' },
-    { qty: 12, cost: 4.8, label: 'Dozen' },
-    { qty: 48, cost: 16.8, label: 'Crate (48)' },
+    { qty: 6, cost: 2.7, label: 'Half dozen' },
+    { qty: 12, cost: 4.4, label: 'Dozen' },
+    { qty: 48, cost: 14.4, label: 'Crate (48)' },
   ],
   sugar: [
-    { qty: 10, cost: 2.5, label: 'Small bag (10)' },
-    { qty: 25, cost: 5.0, label: 'Big bag (25)' },
-    { qty: 100, cost: 15.0, label: 'Sack (100)' },
+    { qty: 10, cost: 2.2, label: 'Small bag (10)' },
+    { qty: 25, cost: 4.5, label: 'Big bag (25)' },
+    { qty: 100, cost: 12.0, label: 'Sack (100)' },
   ],
   ice: [
     { qty: 25, cost: 1.25, label: 'Tray (25)' },
@@ -169,8 +169,8 @@ export interface WeatherEffects {
 }
 export const WEATHER_EFFECTS: Record<WeatherKind, WeatherEffects> = {
   rain: { traffic: 0.45, thirst: 0.4, label: 'Rainy' },
-  cloudy: { traffic: 0.85, thirst: 0.75, label: 'Cloudy' },
-  mild: { traffic: 1.0, thirst: 0.9, label: 'Mild' },
+  cloudy: { traffic: 0.85, thirst: 0.8, label: 'Cloudy' },
+  mild: { traffic: 1.0, thirst: 0.95, label: 'Mild' },
   sunny: { traffic: 1.1, thirst: 1.15, label: 'Sunny' },
   hot: { traffic: 1.2, thirst: 1.55, label: 'Heatwave' },
 };
@@ -185,7 +185,7 @@ export const TEMP_MAX = 99;
 // Demand & customers
 // ---------------------------------------------------------------------------
 /** Base probability a passerby stops at the stand with everything at 1.0. */
-export const BASE_CAPTURE = 0.32;
+export const BASE_CAPTURE = 0.34;
 /** Popularity factor: 0 pop → 0.45, 100 pop → 1.35. */
 export function popularityFactor(pop: number): number {
   return 0.45 + (pop / 100) * 0.9;
@@ -206,7 +206,7 @@ export const BREW_TIME = 7;
 export const BREW_TIME_JUICER_MULT = 0.55;
 
 /** Base patience while queueing, sim minutes (randomized ±40%). */
-export const PATIENCE_BASE = 11;
+export const PATIENCE_BASE = 13;
 export const PATIENCE_RADIO_MULT = 1.4;
 /** Extra patience/attraction under awning shade on sunny+hot days. */
 export const AWNING_CAPTURE_BONUS = 0.12;
@@ -215,8 +215,14 @@ export const SIGN_CAPTURE_BONUS = 0.15;
 // ---------------------------------------------------------------------------
 // Popularity dynamics
 // ---------------------------------------------------------------------------
-export const POP_GAIN_PER_HAPPY = 0.45;
-export const POP_LOSS_PER_BAD = 0.55;
+/**
+ * Daily popularity delta is share-based so busy days aren't punished:
+ * delta = SWING * (happy - grumpy) / (happy + grumpy + SOFTEN).
+ * A mostly-happy crowd builds fame regardless of volume; a mostly-grumpy
+ * one erodes it.
+ */
+export const POP_SWING = 10;
+export const POP_SOFTEN = 10;
 export const POP_DAY_GAIN_CAP = 6;
 export const POP_DAY_LOSS_CAP = 8;
 /** Slow drift back toward this baseline on empty days. */
@@ -286,8 +292,8 @@ export const CAREER_GOALS: CareerGoal[] = [
   { day: 10, desc: 'Reach 40 popularity by day 10', check: (s) => s.popularity >= 40 },
   { day: 15, desc: 'Have $400 cash by end of day 15', check: (s) => s.cash >= 400 },
   { day: 20, desc: 'Own 3 upgrades by day 20', check: (s) => s.upgrades.length >= 3 },
-  { day: 25, desc: 'Have $1000 cash by end of day 25', check: (s) => s.cash >= 1000 },
-  { day: 30, desc: 'Finish day 30 with $1800', check: (s) => s.cash >= 1800 },
+  { day: 25, desc: 'Have $800 cash by end of day 25', check: (s) => s.cash >= 800 },
+  { day: 30, desc: 'Finish day 30 with $1500', check: (s) => s.cash >= 1500 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -296,4 +302,6 @@ export const CAREER_GOALS: CareerGoal[] = [
 /** Below this recipe fit, a served customer shows the ice-cube "wrong recipe" face. */
 export const REACTION_TASTE_THRESHOLD = 0.55;
 /** Wait fraction (waited/patience) above which a served customer still grumbles. */
-export const REACTION_WAIT_THRESHOLD = 0.75;
+export const REACTION_WAIT_THRESHOLD = 0.8;
+/** …but only if they actually waited at least this many sim minutes. */
+export const REACTION_WAIT_MIN = 7;

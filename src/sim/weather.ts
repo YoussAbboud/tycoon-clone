@@ -6,8 +6,9 @@ import type { Rng } from './rng.ts';
 
 /** Roll genuine weather for a day, optionally influenced by active events. */
 export function rollWeather(rng: Rng, prevTemp: number, events: ActiveEvent[]): Weather {
-  // Temperature random-walks so streaks (hot spells, cool spells) happen naturally.
-  let temp = prevTemp + rng.range(-9, 9);
+  // Temperature random-walks (so hot/cool spells happen) with mild mean
+  // reversion so it never pins at the extremes for weeks.
+  let temp = prevTemp + rng.range(-9, 9) + (74 - prevTemp) * 0.15;
   if (events.some((e) => e.id === 'heatwave')) temp = Math.max(temp, HOT_TEMP + rng.range(0, 6));
   if (events.some((e) => e.id === 'coldSnap')) temp = Math.min(temp, 64) - rng.range(0, 5);
   temp = Math.round(Math.max(TEMP_MIN, Math.min(TEMP_MAX, temp)));

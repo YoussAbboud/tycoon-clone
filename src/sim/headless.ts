@@ -3,7 +3,7 @@
 // upgrades — then the day runs with coarse ticks and no rendering.
 
 import type { GameState, StockId, UpgradeId } from '../types.ts';
-import { LOCATIONS, STOCK_TIERS, UPGRADES, idealIce, idealSugar } from '../config.ts';
+import { IDEAL_LEMONS, LOCATIONS, STOCK_TIERS, UPGRADES, idealIce, idealSugar } from '../config.ts';
 import { DaySim } from './daysim.ts';
 import { Rng } from './rng.ts';
 import { buyStock, stockCount } from './economy.ts';
@@ -12,7 +12,7 @@ import { finishDay } from './endofday.ts';
 import type { DayResults } from '../types.ts';
 
 const UPGRADE_ORDER: UpgradeId[] = [
-  'sign', 'juicer', 'cooler', 'pitcher', 'register', 'radio', 'hygiene', 'awning',
+  'sign', 'cooler', 'juicer', 'pitcher', 'register', 'radio', 'hygiene', 'awning',
 ];
 
 export interface AutoPlayerTuning {
@@ -28,7 +28,7 @@ export function autoPlan(state: GameState, tuning: AutoPlayerTuning = {}): void 
   const { priceMult = 0.95, stockFactor = 1.25, buyUpgrades = true } = tuning;
   const fc = state.forecastToday;
 
-  state.recipe.lemons = 6;
+  state.recipe.lemons = IDEAL_LEMONS;
   state.recipe.sugar = Math.round(idealSugar(fc.temp));
   state.recipe.ice = Math.round(idealIce(fc.temp));
   state.price = Math.max(0.25, Math.round(LOCATIONS[state.location].tolerance * priceMult * 4) / 4);
@@ -59,29 +59,45 @@ export function autoPlan(state: GameState, tuning: AutoPlayerTuning = {}): void 
     170, // physical serving ceiling
   );
 
+  // Round-robin purchasing so no single item starves the others when cash
+  // is tight — a stand with 84 lemons and no sugar sells nothing.
   const cupsPer = state.upgrades.includes('pitcher') ? 12 : 8;
   const pitchers = Math.ceil((expected * stockFactor) / cupsPer);
-  buyToTarget(state, 'cups', Math.ceil(expected * stockFactor));
-  buyToTarget(state, 'ice', Math.ceil(expected * stockFactor * state.recipe.ice));
-  buyToTarget(state, 'lemons', pitchers * state.recipe.lemons);
-  buyToTarget(state, 'sugar', pitchers * state.recipe.sugar);
-}
-
-function buyToTarget(state: GameState, stock: StockId, target: number): void {
-  let guard = 60;
-  while (stockCount(state.inventory, stock) < target && guard-- > 0) {
-    const deficit = target - stockCount(state.inventory, stock);
-    const tiers = STOCK_TIERS[stock];
-    // Largest tier that isn't gross overbuy; else the smallest.
-    let idx = 0;
-    for (let i = tiers.length - 1; i >= 0; i--) {
-      if (tiers[i].qty <= deficit * 1.6) {
-        idx = i;
-        break;
+  // Ice melts overnight — buy close to the bone unless a cooler banks it.
+  const iceFactor = state.upgrades.includes('cooler') ? stockFactor : 1.02;
+  const targets: [StockId, number][] = [
+    ['lemons', pitchers * state.recipe.lemons],
+    ['sugar', pitchers * state.recipe.sugar],
+    ['cups', Math.ceil(expected * stockFactor)],
+    ['ice', Math.ceil(expected * iceFactor * state.recipe.ice)],
+  ];
+  let progress = true;
+  while (progress) {
+    progress = false;
+    for (const [stock, target] of targets) {
+      if (stockCount(state.inventory, stock) < target && buyOneTier(state, stock, target)) {
+        progress = true;
       }
     }
-    if (!buyStock(state, stock, idx)) break; // out of cash
   }
+}
+
+/** Buy a single sensible tier toward the target. Returns false when done/broke. */
+function buyOneTier(state: GameState, stock: StockId, target: number): boolean {
+  // Perishables spoil, so chasing bulk discounts on them backfires.
+  const overbuy = stock === 'lemons' || stock === 'ice' ? 1.15 : 1.6;
+  const deficit = target - stockCount(state.inventory, stock);
+  if (deficit <= 0) return false;
+  const tiers = STOCK_TIERS[stock];
+  // Largest tier that isn't gross overbuy; else the smallest.
+  let idx = 0;
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (tiers[i].qty <= deficit * overbuy) {
+      idx = i;
+      break;
+    }
+  }
+  return buyStock(state, stock, idx);
 }
 
 /** Run one day start-to-finish with no rendering. Returns the results. */

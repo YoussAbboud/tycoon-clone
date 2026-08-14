@@ -13,8 +13,8 @@ import {
   POP_DAY_GAIN_CAP,
   POP_DAY_LOSS_CAP,
   POP_DRIFT,
-  POP_GAIN_PER_HAPPY,
-  POP_LOSS_PER_BAD,
+  POP_SOFTEN,
+  POP_SWING,
 } from '../config.ts';
 import type { DaySim } from './daysim.ts';
 import { Rng } from './rng.ts';
@@ -63,10 +63,8 @@ export function finishDay(state: GameState, sim: DaySim): DayResults {
   const popularityBefore = state.popularity;
   const hadCustomers = stats.served + stats.lost > 0;
   if (hadCustomers) {
-    const delta = Math.max(
-      -POP_DAY_LOSS_CAP,
-      Math.min(POP_DAY_GAIN_CAP, stats.happy * POP_GAIN_PER_HAPPY - stats.grumpy * POP_LOSS_PER_BAD),
-    );
+    const raw = (POP_SWING * (stats.happy - stats.grumpy)) / (stats.happy + stats.grumpy + POP_SOFTEN);
+    const delta = Math.max(-POP_DAY_LOSS_CAP, Math.min(POP_DAY_GAIN_CAP, raw));
     state.popularity = Math.max(0, Math.min(100, state.popularity + delta));
   } else {
     state.popularity += Math.sign(POP_BASELINE - state.popularity) * POP_DRIFT;
@@ -130,6 +128,14 @@ export function finishDay(state: GameState, sim: DaySim): DayResults {
   const roll = generateNews(state, rng);
   state.events.push(...roll.events);
   state.news = roll.news;
+
+  // Gentle bail-out: a broke stand can't even restock, which would strand
+  // the game. Grandma keeps the dream alive (relaxed play > bankruptcy).
+  if (state.cash < 10) {
+    state.cash += 20;
+    state.news.unshift('Grandma slipped you $20 and said to keep your chin up.');
+    notes.push('💝 Grandma chipped in $20 to keep you going.');
+  }
 
   const weather = rollWeather(rng, state.weatherToday.temp, state.events);
   state.weatherToday = weather;

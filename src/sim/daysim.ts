@@ -14,6 +14,7 @@ import {
   PATIENCE_BASE,
   PATIENCE_RADIO_MULT,
   REACTION_TASTE_THRESHOLD,
+  REACTION_WAIT_MIN,
   REACTION_WAIT_THRESHOLD,
   SERVE_TIME,
   SERVE_TIME_JUICER_MULT,
@@ -200,7 +201,9 @@ export class DaySim {
         id: this.nextId++,
         x: dir === 1 ? -30 : WORLD_W + 30,
         dir: dir as 1 | -1,
-        speed: this.rng.range(9, 16),
+        // Fast enough that the street doesn't silt up with lingerers —
+        // crossing takes ~25 sim minutes (~4 real seconds at 1x).
+        speed: this.rng.range(30, 46),
         lane: this.rng.next(),
         variant: this.rng.int(0, 7),
         hat: this.rng.int(0, 4),
@@ -237,7 +240,7 @@ export class DaySim {
       if (p.state === 'queueing') {
         // Shuffle toward the assigned queue slot.
         const target = queueSlotX(p.queuePos);
-        const step = 28 * dt;
+        const step = 60 * dt;
         if (Math.abs(p.x - target) > 2) p.x += Math.sign(target - p.x) * Math.min(step, Math.abs(p.x - target));
       }
     }
@@ -294,9 +297,10 @@ export class DaySim {
 
   // -- Serving --------------------------------------------------------------
 
+  /** Ice isn't required to pour — running out just means warm lemonade. */
   private canPourCup(): boolean {
     const inv = this.state.inventory;
-    return this.pitcherCups > 0 && inv.cups > 0 && inv.ice >= this.recipe.ice;
+    return this.pitcherCups > 0 && inv.cups > 0;
   }
 
   private updateServing(dt: number): void {
@@ -324,15 +328,17 @@ export class DaySim {
     const inv = this.state.inventory;
     this.pitcherCups -= 1;
     inv.cups -= 1;
-    inv.ice -= this.recipe.ice;
+    // Short on ice? The cup goes out warm and the taste score pays for it.
+    const iceInCup = Math.min(this.recipe.ice, inv.ice);
+    inv.ice -= iceInCup;
     this.stats.cupsUsed += 1;
-    this.stats.iceUsed += this.recipe.ice;
+    this.stats.iceUsed += iceInCup;
     this.stats.sold += 1;
     this.stats.served += 1;
     this.stats.revenue += this.state.price;
 
     // Satisfaction samples
-    const fit = recipeFit(this.recipe, this.state.weatherToday.temp);
+    const fit = recipeFit({ ...this.recipe, ice: iceInCup }, this.state.weatherToday.temp);
     const taste = Math.max(0, Math.min(1, fit.overall + this.rng.range(-0.08, 0.08)));
     const priceR = this.state.price / this.priceTolerance();
     const priceSat = Math.max(0, Math.min(1, 1.5 - 0.62 * priceR));
@@ -349,7 +355,7 @@ export class DaySim {
     let reaction: Reaction = 'happy';
     if (taste < REACTION_TASTE_THRESHOLD) reaction = 'wrongRecipe';
     else if (priceSat < 0.45 && this.rng.chance(0.6)) reaction = 'expensive';
-    else if (waitFrac > REACTION_WAIT_THRESHOLD) reaction = 'tooSlow';
+    else if (waitFrac > REACTION_WAIT_THRESHOLD && p.waited > REACTION_WAIT_MIN) reaction = 'tooSlow';
 
     if (reaction === 'happy') this.stats.happy += 1;
     else this.stats.grumpy += 1;
@@ -405,7 +411,6 @@ export class DaySim {
     const pitcherPossible = this.pitcherCups > 0 || this.brewing || this.canBrew();
     let reason = '';
     if (inv.cups === 0) reason = 'Out of cups!';
-    else if (inv.ice < this.recipe.ice) reason = 'Out of ice!';
     else if (!pitcherPossible) reason = 'No more lemonade!';
     if (reason) {
       this.soldOut = true;
@@ -454,7 +459,7 @@ export class DaySim {
       this.stats.priceN += 1;
     }
     if (reason === 'soldOut' || reason === 'queueFull') {
-      this.stats.grumpy += 0.5;
+      this.stats.grumpy += 0.3;
     }
     if (reason === 'impatient') this.stats.grumpy += 1;
     void p;

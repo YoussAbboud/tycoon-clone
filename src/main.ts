@@ -67,4 +67,35 @@ const ctx: Ctx = {
 // First user interaction unlocks WebAudio.
 window.addEventListener('pointerdown', () => audio.unlock(), { once: true });
 
-ctx.goto('menu');
+// Headless balance mode in the browser: ?fast=30 auto-plays N days and
+// prints the run instead of starting the game (same as `npm run fast`).
+const fastDays = Number(new URLSearchParams(location.search).get('fast'));
+if (Number.isFinite(fastDays) && fastDays > 0) {
+  void runFastInBrowser(Math.min(365, Math.floor(fastDays)));
+} else {
+  ctx.goto('menu');
+}
+
+async function runFastInBrowser(days: number): Promise<void> {
+  const { newGame } = await import('./game.ts');
+  const { autoPlan, runDayHeadless } = await import('./sim/headless.ts');
+  const lines: string[] = [`Fresh Squeeze — headless run, ${days} days`, ''];
+  const s = newGame('freeplay');
+  for (let i = 0; i < days; i++) {
+    autoPlan(s);
+    const r = runDayHeadless(s);
+    lines.push(
+      `day ${String(r.day).padStart(3)}  ${r.weather.kind.padEnd(6)} ${String(r.weather.temp).padStart(2)}°  ` +
+        `sold ${String(r.cupsSold).padStart(3)}  net $${r.net.toFixed(2).padStart(7)}  ` +
+        `cash $${s.cash.toFixed(2).padStart(8)}  pop ${Math.round(s.popularity)}`,
+    );
+  }
+  lines.push('', `upgrades: ${s.upgrades.join(', ') || 'none'}`);
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'font-size:12px;overflow-x:auto';
+  pre.textContent = lines.join('\n');
+  panel.appendChild(pre);
+  app.appendChild(panel);
+}

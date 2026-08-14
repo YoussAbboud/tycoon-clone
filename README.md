@@ -38,8 +38,13 @@ All tunable constants live in `src/config.ts`. Days can be auto-played
 headlessly for balance work:
 
 ```bash
-npm run fast -- --days 30          # simulate a 30-day run, print a table
+npm run fast -- --days 30                      # simulate a 30-day run, print a table
+npm run fast -- --days 30 --seed 42            # reproducible run
+npm run fast -- --price-mult 1.2 --no-upgrades # tweak the auto-player
 ```
+
+The same runner works in the browser: open the game with `?fast=30` in the
+URL to auto-play 30 days headlessly and print the run.
 
 ## Saves
 
