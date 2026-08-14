@@ -61,6 +61,8 @@ export interface SimPerson {
   /** Sim minutes the current reaction bubble has been showing. */
   reactionAge: number;
   decided: boolean;
+  /** True once served — leaves carrying a lemonade cup. */
+  gotCup: boolean;
 }
 
 export interface SimStats {
@@ -209,6 +211,7 @@ export class DaySim {
         reaction: null,
         reactionAge: 0,
         decided: false,
+        gotCup: false,
       });
     }
   }
@@ -353,6 +356,7 @@ export class DaySim {
     this.showReaction(p, reaction);
 
     p.state = 'leaving';
+    p.gotCup = true;
     p.dir = this.rng.chance(0.5) ? 1 : -1;
     this.cb.onSale?.(p);
   }
