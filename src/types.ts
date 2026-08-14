@@ -119,6 +119,8 @@ export interface GameState {
   forecastToday: Weather;
   events: ActiveEvent[];
   news: string[]; // ticker headlines for the current planning phase
+  /** Move fee paid during the last planning phase, reported on the next results. */
+  pendingMoveFee: number;
   lastResults: DayResults | null;
   history: { day: number; net: number; sold: number; popularity: number }[];
   career: CareerState | null;

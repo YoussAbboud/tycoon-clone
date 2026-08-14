@@ -43,6 +43,7 @@ export function newGame(mode: GameMode, seed = randomSeed()): GameState {
     forecastToday: forecast,
     events: [],
     news: ['Welcome to Fresh Squeeze! Buy stock, set a price, and open for business.'],
+    pendingMoveFee: 0,
     lastResults: null,
     history: [],
     career: mode === 'career' ? { results: {}, finished: false, won: false } : null,
